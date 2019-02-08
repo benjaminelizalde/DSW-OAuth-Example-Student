@@ -16,11 +16,11 @@ app.debug = True #Change this to False for production
 
 app.secret_key = os.environ['SECRET_KEY'] 
 oauth = OAuth(app)
-
+oauth.init_app(app)
 
 github = oauth.remote_app(
     'github',
-    consumer_key=os.environ['GITHUB_CLIENT_ID'], 
+    consumer_key=os.environ['GITHUB_CLIENT_ID'], #webapp "username" for github's Oauth
     consumer_secret=os.environ['GITHUB_CLIENT_SECRET'],
     request_token_params={'scope': 'user:email'}, #request read-only access to the user's email.  For a list of possible scopes, see developer.github.com/apps/building-oauth-apps/scopes-for-oauth-apps
     base_url='https://api.github.com/',
@@ -49,16 +49,21 @@ def logout():
     return render_template('message.html', message='You were logged out')
 
 @app.route()#the route should match the callback URL registered with the OAuth provider
-def authorized():
+def authorized('/login/authorized/'):
     resp = github.authorized_response()
     if resp is None:
         session.clear()
         message = 'Access denied: reason=' + request.args['error'] + ' error=' + request.args['error_description'] + ' full=' + pprint.pformat(request.args)      
     else:
         try:
+            session['github-token'] = (resp['access_token'], '')
+            session['user_data'] = github.get('user').data
+            message = 'You were succesfully logged in as'+ session["user_data"]["login"]
             #save user data and set log in message
         except:
             #clear the session and give error message
+            session.clear()
+            message='Unable to log in. Try again later.'
     return render_template('message.html', message=message)
 
 
